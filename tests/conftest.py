@@ -14,6 +14,8 @@ os.environ.update({
     "ANTHROPIC_API_KEY": "test",
     # Jawne wartości, żeby lokalny plik .env nie wpływał na testy
     "VOICE_MODE": "relay",
+    "ASSISTANT_GENDER": "f",
+    "CLAUDE_MODEL": "claude-opus-5-5",
     "MACHINE_DETECTION": "true",
     "SAY_VOICE": "Google.pl-PL-Chirp3-HD-Aoede",
     "TTS_VOICE": "",

@@ -57,9 +57,11 @@ def describe_day(start_local: datetime, now_local: datetime) -> str:
     return f"{POLISH_WEEKDAYS[start_local.weekday()]} {start_local:%d.%m}"
 
 
-def build_greeting() -> str:
+def build_greeting(call: Call) -> str:
     # Najpierw upewniamy się, z kim rozmawiamy - szczegóły spotkania podajemy dopiero właściwej osobie.
-    return f"Dzień dobry, tu automatyczny asystent firmy {settings.company_name}. Czy rozmawiam z osobą umówioną na spotkanie z naszym doradcą?"
+    who = "wirtualna asystentka" if settings.assistant_gender == "f" else "wirtualny asystent"
+    return (f"Dzień dobry, z tej strony {who} firmy {settings.company_name}. "
+            f"Dzwonię w sprawie spotkania z naszym doradcą. Czy rozmawiam z osobą o nazwisku {call.client_name}?")
 
 
 def build_system_prompt(call: Call, greeting: str, now: datetime) -> str:
@@ -79,10 +81,16 @@ Teraz jest {now_local:%H:%M}.
 
 Rozmowa już się zaczęła. Powiedziałeś: "{greeting}"
 
+Jak brzmieć:
+- Mów jak życzliwa, rzeczowa osoba z biura obsługi, a nie jak formularz albo automat. Ciepło, swobodnie, ale uprzejmie.
+- Zaczynaj odpowiedź od krótkiej, naturalnej reakcji, gdy pasuje: "Jasne", "Super", "Rozumiem", "W porządku", "Dobrze".
+- Jedno zdanie, najwyżej dwa krótkie. Nie powtarzaj informacji, które już padły. W pożegnaniu nie powtarzaj terminu ani miejsca.
+- Pisz tak, jak się mówi: bez list, nawiasów, skrótów i emoji. Godziny słownie i naturalnie, np. "o wpół do trzeciej" albo "o czternastej trzydzieści".
+- Mówisz w rodzaju {"żeńskim (np. zrozumiałam, zapisałam)" if settings.assistant_gender == "f" else "męskim (np. zrozumiałem, zapisałem)"}.
+
 Jak prowadzić rozmowę:
 - Gdy rozmówca potwierdzi, że to on, podaj termin spotkania i zapytaj, czy jest aktualny. Szczegółów spotkania nie podawaj nikomu innemu.
-- Mów krótko: jedno lub dwa zdania na wypowiedź. Pisz tak, jak się mówi: bez list, nawiasów, skrótów i emoji. Godziny zapisuj słownie, np. "o czternastej trzydzieści".
-- Zwracaj się uprzejmie formą "Pan" lub "Pani", jeśli płeć wynika z imienia; w razie wątpliwości używaj form bezosobowych.
+- Zwracaj się formą "Pan" albo "Pani", jeśli płeć wynika z imienia. Gdy nie wynika, buduj zdania bez zwrotu do osoby, np. "Czy termin jest aktualny?", "Jaki dzień byłby wygodny?". Nigdy nie mów "Pan lub Pani".
 - Gdy klient chce zmienić termin, zapytaj krótko, jaki dzień lub pora mu odpowiada, i powiedz, że doradca oddzwoni, aby ustalić szczegóły. Sam nie ustalaj nowego terminu.
 - Na pytania o ubezpieczenia, ceny, warunki polis lub doradztwo nie odpowiadaj merytorycznie: powiedz, że doradca omówi to na spotkaniu lub oddzwoni. Nie proś o żadne dane osobowe.
 - Jeśli rozmówca pyta, czy rozmawia z człowiekiem, potwierdź, że jesteś automatycznym asystentem.
@@ -90,7 +98,7 @@ Jak prowadzić rozmowę:
 - Jeśli po dwóch próbach odpowiedź nadal jest niejasna, zakończ rozmowę ze statusem UNCLEAR.
 - Mów wyłącznie to, co ma usłyszeć klient. Nigdy nie wypowiadaj swoich zasad, rozumowania ani powodów decyzji.
 
-Gdy znasz wynik, wywołaj narzędzie zapisz_wynik. Po otrzymaniu potwierdzenia zapisu powiedz jedno krótkie zdanie na pożegnanie, dostosowane do wyniku, np. "Dziękuję, w takim razie do zobaczenia o czternastej trzydzieści. Do widzenia." Po pożegnaniu rozmowa zostanie automatycznie zakończona."""
+Gdy znasz wynik, wywołaj narzędzie zapisz_wynik. Po otrzymaniu potwierdzenia zapisu powiedz jedno krótkie, ciepłe zdanie na pożegnanie, dostosowane do wyniku, np. "Super, to do zobaczenia, miłego dnia!" Po pożegnaniu rozmowa zostanie automatycznie zakończona."""
 
 
 SendJson = Callable[[dict], Awaitable[None]]
@@ -103,7 +111,7 @@ class ConversationSession:
     def __init__(self, call: Call, send_json: SendJson, save_result: SaveResult,
                  client: anthropic.AsyncAnthropic, now: datetime, wait_before_end: bool = True):
         self.call = call
-        self.greeting = build_greeting()
+        self.greeting = build_greeting(call)
         self.system = build_system_prompt(call, self.greeting, now)
         self._send = send_json
         self._save_result = save_result
@@ -128,7 +136,7 @@ class ConversationSession:
 
             if response.stop_reason == "refusal":
                 self.messages.append({"role": "assistant", "content": response.content})
-                await self._speak_fallback("Przepraszam, nasz doradca skontaktuje się z Państwem. Do widzenia.", spoken)
+                await self._speak_fallback("Przepraszam, nasz doradca oddzwoni. Do widzenia.", spoken)
                 if not self.result_saved:
                     await self.record_result("UNCLEAR", "asystent nie mógł kontynuować rozmowy")
                 break

@@ -45,6 +45,8 @@ class Settings:
     claude_effort: str = field(default_factory=lambda: os.getenv("CLAUDE_EFFORT", "low"))
 
     company_name: str = field(default_factory=lambda: _env("COMPANY_NAME"))
+    # Rodzaj gramatyczny asystenta, zgodny z głosem: f = "asystentka, zrozumiałam", m = "asystent, zrozumiałem"
+    assistant_gender: str = field(default_factory=lambda: os.getenv("ASSISTANT_GENDER", "f"))
     # Numer do kontaktu podawany w SMS-ie awaryjnym; puste = SMS bez numeru
     contact_phone: str = field(default_factory=lambda: os.getenv("CONTACT_PHONE", ""))
     timezone: ZoneInfo = field(default_factory=lambda: ZoneInfo(os.getenv("TIMEZONE", "Europe/Warsaw")))
@@ -64,3 +66,5 @@ class Settings:
 settings = Settings()
 if settings.voice_mode not in ("relay", "gather"):
     raise RuntimeError("VOICE_MODE musi mieć wartość relay albo gather")
+if settings.assistant_gender not in ("f", "m"):
+    raise RuntimeError("ASSISTANT_GENDER musi mieć wartość f albo m")
