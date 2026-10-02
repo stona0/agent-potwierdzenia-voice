@@ -1,0 +1,10 @@
+anthropic==1.11.0
+fastapi==0.142.2
+uvicorn[standard]==0.54.0
+websockets==17.1
+python-multipart==0.0.32
+twilio==9.11.2
+google-api-python-client==2.201.0
+google-auth==2.59.1
+python-dotenv==1.2.4
+tzdata==2026.4

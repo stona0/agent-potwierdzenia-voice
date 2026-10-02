@@ -1,0 +1,28 @@
+import os
+
+os.environ.update({
+    "PUBLIC_BASE_URL": "https://example.ngrok.app",
+    "TWILIO_ACCOUNT_SID": "ACtest",
+    "TWILIO_AUTH_TOKEN": "test-token",
+    "TWILIO_FROM_NUMBER": "+48221234567",
+    "TWILIO_SMS_FROM": "Firma",
+    "GOOGLE_CREDENTIALS_FILE": "/nonexistent.json",
+    "GOOGLE_CALENDAR_IDS": "doradca@firma.pl",
+    "COMPANY_NAME": "Polisa Plus",
+    "DASHBOARD_PASSWORD": "haslo",
+    "DB_PATH": ":memory:",
+    "ANTHROPIC_API_KEY": "test",
+    # Jawne wartości, żeby lokalny plik .env nie wpływał na testy
+    "VOICE_MODE": "relay",
+    "MACHINE_DETECTION": "true",
+    "SAY_VOICE": "Google.pl-PL-Chirp3-HD-Aoede",
+    "TTS_VOICE": "",
+    "CONTACT_PHONE": "",
+    "TIMEZONE": "Europe/Warsaw",
+    "CALL_LEAD_MINUTES": "60",
+    "MIN_LEAD_MINUTES": "15",
+    "MAX_ATTEMPTS": "3",
+    "RETRY_DELAY_MINUTES": "10",
+    "POLL_SECONDS": "60",
+    "DASHBOARD_USER": "admin",
+})
