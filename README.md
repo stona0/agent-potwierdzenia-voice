@@ -77,13 +77,21 @@ Uzupełnij `.env`, potem:
 uv venv --python 3.12 .venv && uv pip install --python .venv/bin/python -r requirements-dev.txt
 ```
 
-Twilio musi widzieć aplikację z internetu. W osobnym terminalu:
+Twilio musi widzieć aplikację z internetu, do tego służy [ngrok](https://ngrok.com). Darmowe konto dostaje jedną stałą domenę `....ngrok-free.dev`. Znajdziesz ją w panelu ngrok w zakładce **Domains**. Dzięki niej adres aplikacji nie zmienia się po restarcie ngroka ani komputera.
+
+Jednorazowo zapisz token ngrok. Wpisz go tylko w terminalu, nie wklejaj go do czatu ani do repozytorium:
 
 ```bash
-ngrok http 8000
+ngrok config add-authtoken TWÓJ_TOKEN
 ```
 
-Adres `https://....ngrok-free.app` wpisz do `PUBLIC_BASE_URL` w `.env`. Potem uruchom serwer:
+W osobnym terminalu uruchom tunel na swojej stałej domenie:
+
+```bash
+ngrok http 8000 --url https://TWOJA-DOMENA.ngrok-free.dev
+```
+
+Ten sam adres wpisz raz do `PUBLIC_BASE_URL` w `.env`. Potem uruchom serwer:
 
 ```bash
 .venv/bin/uvicorn app.main:app --port 8000
