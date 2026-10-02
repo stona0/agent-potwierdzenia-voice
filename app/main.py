@@ -73,15 +73,31 @@ def require_admin(credentials: HTTPBasicCredentials = Depends(security)) -> None
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, headers={"WWW-Authenticate": "Basic"})
 
 
-async def twilio_form(request: Request) -> dict:
-    """Parsuje webhook Twilio i weryfikuje podpis X-Twilio-Signature."""
+async def _parse_twilio(request: Request, require_signature: bool) -> dict:
     form = dict(await request.form())
+    signature = request.headers.get("X-Twilio-Signature")
     url = settings.public_base_url + request.url.path
     if request.url.query:
         url += "?" + request.url.query
-    if not telephony.is_valid_signature(url, form, request.headers.get("X-Twilio-Signature", "")):
+    if signature is None and not require_signature:
+        return form
+    if not telephony.is_valid_signature(url, form, signature or ""):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Niepoprawny podpis Twilio")
     return form
+
+
+async def twilio_form(request: Request) -> dict:
+    return await _parse_twilio(request, require_signature=True)
+
+
+async def twilio_call_form(request: Request) -> dict:
+    """Webhook trwającej rozmowy. Bramka konta trial ("press any key") wysyła go bez podpisu,
+    dlatego handler musi sam sprawdzić, że CallSid należy do połączenia, które rozpoczęliśmy."""
+    return await _parse_twilio(request, require_signature=False)
+
+
+def _is_our_call(call_sid: str | None, form: dict) -> bool:
+    return bool(call_sid) and secrets.compare_digest(call_sid, form.get("CallSid", ""))
 
 
 def twiml(body: str) -> Response:
@@ -97,9 +113,9 @@ def _result_saver(call):
 
 
 @app.post("/twilio/voice")
-async def twilio_voice(event_id: str, form: dict = Depends(twilio_form)):
+async def twilio_voice(event_id: str, form: dict = Depends(twilio_call_form)):
     call = db.get(event_id)
-    if not call or call.status != "CALLING":
+    if not call or call.status != "CALLING" or not _is_our_call(call.call_sid, form):
         return twiml(telephony.hangup_twiml())
 
     answered_by = form.get("AnsweredBy", "")
@@ -121,9 +137,10 @@ async def twilio_voice(event_id: str, form: dict = Depends(twilio_form)):
 
 
 @app.post("/twilio/gather")
-async def twilio_gather(event_id: str, token: str, form: dict = Depends(twilio_form)):
+async def twilio_gather(event_id: str, token: str, form: dict = Depends(twilio_call_form)):
     state = gather_calls.get(event_id)
-    if not state or not secrets.compare_digest(state.session.call.call_token or "", token):
+    if (not state or not secrets.compare_digest(state.session.call.call_token or "", token)
+            or not _is_our_call(state.session.call.call_sid, form)):
         return twiml(telephony.hangup_twiml())
     session = state.session
     speech = (form.get("SpeechResult") or "").strip()

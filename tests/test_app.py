@@ -217,3 +217,40 @@ def test_test_call_rejects_cross_origin_post(client):
                     headers={"Origin": "http://testserver"}, follow_redirects=False)
     assert r.status_code == 303
     assert [c[0] for c in client.dialer.calls] == ["+449001234567"]
+
+
+def post_unsigned(client, path, form):
+    return client.post(path, content=urlencode(form), headers={"Content-Type": "application/x-www-form-urlencoded"})
+
+
+def test_unsigned_voice_from_trial_gate_is_accepted_for_our_call(client):
+    call = start_call(client)
+    r = post_unsigned(client, "/twilio/voice?event_id=ev1", {"CallSid": call.call_sid, "CallStatus": "in-progress"})
+    assert r.status_code == 200 and "<ConversationRelay" in r.text
+
+
+def test_unsigned_voice_with_foreign_call_sid_gets_hangup(client):
+    start_call(client)
+    r = post_unsigned(client, "/twilio/voice?event_id=ev1", {"CallSid": "CAobcy", "CallStatus": "in-progress"})
+    assert "<Hangup/>" in r.text and "<ConversationRelay" not in r.text
+
+
+def test_voice_with_bad_signature_is_rejected(client):
+    call = start_call(client)
+    r = client.post("/twilio/voice?event_id=ev1", content=urlencode({"CallSid": call.call_sid}),
+                    headers={"X-Twilio-Signature": "zly", "Content-Type": "application/x-www-form-urlencoded"})
+    assert r.status_code == 403
+
+
+def test_unsigned_status_webhook_is_rejected(client):
+    call = start_call(client)
+    r = post_unsigned(client, "/twilio/status", {"CallSid": call.call_sid, "CallStatus": "no-answer"})
+    assert r.status_code == 403
+    assert main.db.get("ev1").status == "CALLING"
+
+
+def test_gather_mode_speaks_before_listening(client, gather_mode):
+    call = start_call(client)
+    r = post_twilio(client, "/twilio/voice?event_id=ev1", {"CallSid": call.call_sid, "AnsweredBy": "human"})
+    assert r.text.index("</Say>") < r.text.index("<Gather")
+    assert "</Gather>" not in r.text

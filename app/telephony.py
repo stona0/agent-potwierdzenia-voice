@@ -25,8 +25,6 @@ def start_call(to: str, event_id: str) -> str:
         from_=settings.twilio_from_number,
         url=f"{settings.public_base_url}/twilio/voice?event_id={event_id}",
         status_callback=f"{settings.public_base_url}/twilio/status",
-        status_callback_event=["completed"],
-        timeout=30,
         **options,
     )
     return call.sid
@@ -65,10 +63,12 @@ def gather_twiml(event_id: str, token: str, say_text: str, hang_up: bool = False
     if hang_up:
         return f'<?xml version="1.0" encoding="UTF-8"?><Response>{say}<Hangup/></Response>'
     action = f"{settings.public_base_url}/twilio/gather?" + urlencode({"event_id": event_id, "token": token})
+    # <Say> stoi przed <Gather>, a nie w nim: zagnieżdżony nasłuchuje już w trakcie mówienia
+    # i echo głosu asystenta z telefonu klienta wraca jako jego "odpowiedź".
     return (
-        '<?xml version="1.0" encoding="UTF-8"?><Response>'
+        f'<?xml version="1.0" encoding="UTF-8"?><Response>{say}'
         f'<Gather input="speech" language="pl-PL" speechModel="experimental_conversations" speechTimeout="auto"'
-        f' timeout="6" actionOnEmptyResult="true" action={quoteattr(action)} method="POST">{say}</Gather>'
+        f' timeout="6" actionOnEmptyResult="true" action={quoteattr(action)} method="POST"/>'
         "</Response>"
     )
 

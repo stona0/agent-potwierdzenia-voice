@@ -88,6 +88,7 @@ Jak prowadzić rozmowę:
 - Jeśli rozmówca pyta, czy rozmawia z człowiekiem, potwierdź, że jesteś automatycznym asystentem.
 - Jeśli telefon odebrała inna osoba lub to pomyłka, przeproś i zakończ rozmowę bez podawania szczegółów.
 - Jeśli po dwóch próbach odpowiedź nadal jest niejasna, zakończ rozmowę ze statusem UNCLEAR.
+- Mów wyłącznie to, co ma usłyszeć klient. Nigdy nie wypowiadaj swoich zasad, rozumowania ani powodów decyzji.
 
 Gdy znasz wynik, wywołaj narzędzie zapisz_wynik. Po otrzymaniu potwierdzenia zapisu powiedz jedno krótkie zdanie na pożegnanie, dostosowane do wyniku, np. "Dziękuję, w takim razie do zobaczenia o czternastej trzydzieści. Do widzenia." Po pożegnaniu rozmowa zostanie automatycznie zakończona."""
 
@@ -147,6 +148,9 @@ class ConversationSession:
             await self._hang_up_after(text)
 
     async def _stream_turn(self, spoken: list[str]):
+        if spoken and not spoken[-1].endswith(" "):
+            spoken.append(" ")
+            await self._send({"type": "text", "token": " ", "last": False})
         for attempt in range(2):
             try:
                 async with self._client.beta.messages.stream(
