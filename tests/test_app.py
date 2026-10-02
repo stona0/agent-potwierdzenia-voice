@@ -254,3 +254,13 @@ def test_gather_mode_speaks_before_listening(client, gather_mode):
     r = post_twilio(client, "/twilio/voice?event_id=ev1", {"CallSid": call.call_sid, "AnsweredBy": "human"})
     assert r.text.index("</Say>") < r.text.index("<Gather")
     assert "</Gather>" not in r.text
+
+
+def test_gather_after_hangup_does_not_call_claude(client, gather_mode, monkeypatch):
+    fake = FakeClient([])
+    monkeypatch.setattr(main, "claude", fake)
+    call = start_call(client)
+    post_twilio(client, "/twilio/voice?event_id=ev1", {"CallSid": call.call_sid, "AnsweredBy": "human"})
+    r = post_twilio(client, gather_path(call), {"CallSid": call.call_sid, "CallStatus": "completed",
+                                                "SpeechResult": "nie ma sensu"})
+    assert "<Hangup/>" in r.text and fake.requests == []

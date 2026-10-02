@@ -124,7 +124,7 @@ async def twilio_voice(event_id: str, form: dict = Depends(twilio_call_form)):
         return twiml(telephony.hangup_twiml())
 
     if settings.voice_mode == "relay":
-        return twiml(telephony.relay_twiml(call.event_id, call.call_token, build_greeting()))
+        return twiml(telephony.relay_twiml(call.event_id, call.call_token, build_greeting(call)))
 
     outbox: list[dict] = []
 
@@ -143,6 +143,8 @@ async def twilio_gather(event_id: str, token: str, form: dict = Depends(twilio_c
             or not _is_our_call(state.session.call.call_sid, form)):
         return twiml(telephony.hangup_twiml())
     session = state.session
+    if form.get("CallStatus") == "completed":
+        return twiml(telephony.hangup_twiml())
     speech = (form.get("SpeechResult") or "").strip()
 
     if not speech:
@@ -153,7 +155,7 @@ async def twilio_gather(event_id: str, token: str, form: dict = Depends(twilio_c
             return twiml(telephony.gather_twiml(
                 event_id, token, "Nie słyszę odpowiedzi. Nasz doradca skontaktuje się z Państwem. Do widzenia.",
                 hang_up=True))
-        return twiml(telephony.gather_twiml(event_id, token, "Przepraszam, nic nie słychać. Czy może Pan lub Pani powtórzyć?"))
+        return twiml(telephony.gather_twiml(event_id, token, "Halo? Czy mnie słychać?"))
 
     state.silences = 0
     state.outbox.clear()
@@ -161,7 +163,7 @@ async def twilio_gather(event_id: str, token: str, form: dict = Depends(twilio_c
         await asyncio.wait_for(session.respond(speech), GATHER_REPLY_TIMEOUT)
     except TimeoutError:
         log.warning("Claude nie odpowiedział w %ss (spotkanie %s)", GATHER_REPLY_TIMEOUT, event_id)
-        return twiml(telephony.gather_twiml(event_id, token, "Przepraszam, czy może Pan lub Pani powtórzyć?"))
+        return twiml(telephony.gather_twiml(event_id, token, "Przepraszam, mogę prosić jeszcze raz?"))
 
     reply = "".join(m.get("token", "") for m in state.outbox if m["type"] == "text").strip()
     ended = any(m["type"] == "end" for m in state.outbox)
